@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "AiBoxCenter": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:58379;http://localhost:58380"
+    }
+  }
+}

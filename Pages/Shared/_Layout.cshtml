@@ -1,0 +1,33 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - AiBoxCenter</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.15/themes/default/style.min.css" />
+    @await RenderSectionAsync("Head", required: false)
+    <style>
+        body, .dataTables_wrapper, .jstree-default { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important; 
+        }
+    </style>
+</head>
+<body>
+    <nav style="background: #fff; border-bottom: 1px solid #eee; padding: 10px 20px; display: flex; gap: 20px;">
+        <a href="/Devices/Index" style="text-decoration:none; color:#333; font-weight:600;">設備管理</a>
+        <a href="/Cameras/Index" style="text-decoration:none; color:#333; font-weight:600;">攝影機管理</a>
+        <a href="/Sync/Index" style="text-decoration:none; color:#333; font-weight:600;">攝影機同步</a>
+        <a href="/AreaSync/Index" style="text-decoration:none; color:#333; font-weight:600;">區域同步</a>
+    </nav>
+    <main role="main">
+        @RenderBody()
+    </main>
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.15/jstree.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

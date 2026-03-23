@@ -1,0 +1,300 @@
+﻿@page
+@model AiBoxCenter.Pages.AreaSync.IndexModel
+@{ ViewData["Title"] = "區域同步"; }
+
+@Html.AntiForgeryToken()
+
+<div class="content-area" style="max-width:100%; height:auto; overflow:visible;">
+    <div class="content-header">
+        <h2>區域同步</h2>
+    </div>
+    
+    <form method="get" action="" class="mb-4" style="margin-bottom: 20px;">
+        <div style="display: flex; flex-direction: row; align-items: center; gap: 15px;">
+            <label style="font-weight: bold; white-space: nowrap;">選擇設備 (AiBox):</label>
+            <select name="deviceId" class="ant-input" style="width: 300px;">
+                @foreach (var device in Model.DeviceList) {
+                    if (device.Id == Model.SelectedDeviceId) {
+                        <option value="@device.Id" selected>@device.DeviceName (@device.DeviceIP:@device.DevicePort)</option>
+                    } else {
+                        <option value="@device.Id">@device.DeviceName (@device.DeviceIP:@device.DevicePort)</option>
+                    }
+                }
+            </select>
+            <button type="submit" class="ant-btn">讀取資料</button>
+        </div>
+    </form>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="tree-panel" style="height: 600px; padding: 15px; border: 1px solid #adb5bd; background: #fff; border-radius: 4px; overflow-y: auto;">
+            <h3 style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0;">Database Areas (資料庫)</h3>
+            <div class="tree-toolbar">
+                <button class="icon-btn" onclick="treeAction('db', 'create')" title="新增"><i class="fas fa-plus"></i></button>
+                <button class="icon-btn" onclick="treeAction('db', 'edit')" title="編輯"><i class="fas fa-edit"></i></button>
+                <button class="icon-btn danger" onclick="treeAction('db', 'delete')" title="刪除"><i class="fas fa-trash-alt"></i></button>
+            </div>
+            <div id="leftTree" style="min-height: 200px;"></div>
+        </div>
+        
+        <div class="tree-panel" style="height: 600px; padding: 15px; border: 1px solid #adb5bd; background: #fff; border-radius: 4px; overflow-y: auto;">
+            <h3 style="border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0;">AiBox Areas (設備端)</h3>
+            <div class="tree-toolbar">
+                <button class="icon-btn" onclick="treeAction('api', 'create')" title="新增"><i class="fas fa-plus"></i></button>
+                <button class="icon-btn" onclick="treeAction('api', 'edit')" title="編輯"><i class="fas fa-edit"></i></button>
+                <button class="icon-btn danger" onclick="treeAction('api', 'delete')" title="刪除"><i class="fas fa-trash-alt"></i></button>
+            </div>
+            <div id="rightTree" style="min-height: 400px; width: 100%; display: block;"></div>
+        </div>
+    </div>
+</div>
+
+<form id="deleteNodeForm" method="post" asp-page-handler="DeleteArea">
+    <input type="hidden" name="id" id="deleteNodeId" />
+</form>
+
+<div id="nodeModal" class="custom-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 id="modalTitle">新增</h5>
+            <button type="button" onclick="closeModal()" class="close-btn">✕</button>
+        </div>
+        <form id="nodeForm" method="post" enctype="multipart/form-data">
+            <div class="modal-body">
+                <input type="hidden" name="TreeModel.Id" id="nodeId" />
+                
+                <div class="form-group parent-id-field" style="display:none;">
+                    <label>Parent ID</label>
+                    <input name="TreeModel.ParentId" id="treeNodeParentId" class="ant-input" />
+                </div>
+
+                <div class="form-group">
+                    <label>名稱</label>
+                    <input name="TreeModel.Name" id="treeNodeName" class="ant-input" required />
+                </div>
+                <div class="form-group area-only">
+                    <label>區域代碼 (AreaId)</label>
+                    <input name="TreeModel.AreaId" id="treeNodeAreaId" class="ant-input" readonly="readonly" style="background-color:#f5f5f5;" placeholder="系統自動產生 18 碼隨機數" />
+                </div>
+                <div class="form-group img-field">
+                    <label>Image Path</label>
+                    <input type="text" id="nodeImgPath" class="ant-input" readonly style="background-color:#f5f5f5; color:#666;" />
+                </div>
+                <div class="form-group img-field">
+                    <label>圖片上傳</label>
+                    <input type="file" name="TreeModel.ImageFile" class="ant-input" accept="image/*" />
+                    <div style="margin-top:8px;">
+                        <span id="imgStatus" style="font-size:12px; color:#666; margin-right:10px;"></span>
+                        <button type="button" id="btnShowImg" class="ant-btn small" style="display:none; background-color:#52c41a;">顯示圖片</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="ant-btn" style="background:#888; border-color:#888; margin-right:10px;" onclick="closeModal()">取消</button>
+                <button type="submit" class="ant-btn">儲存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts { 
+    <script>
+        $(document).ready(function () { 
+            function getCommonConfig() {
+                return {
+                    'core': {
+                        'check_callback': function (op, node, par, pos, more) {
+                            var urlParams = new URLSearchParams(window.location.search);
+                            if (!urlParams.has('deviceId')) return false;
+                            return true;
+                        },
+                        'themes': { 'name': 'default', 'responsive': true, 'dots': true, 'icons': true }
+                    },
+                    'plugins': ['dnd', 'types']
+                };
+            }
+
+            var leftConfig = getCommonConfig();
+            leftConfig.core.data = @Html.Raw(Model.LeftTreeJson);
+            $('#leftTree').jstree(leftConfig).on('move_node.jstree', function (e, data) {
+                var isSameTree = (data.old_instance.element[0].id === data.new_instance.element[0].id);
+                if (isSameTree) {
+                    var parent = data.parent === '#' ? 'root_all' : data.parent.replace('db_', '');
+                    var id = data.node.id.replace('db_', '');
+                    $.ajax({
+                        url: '?handler=UpdateAreaNode',
+                        type: 'POST',
+                        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                        data: { id: id, parent: parent, position: data.position }
+                    });
+                } else {
+                    handleCrossTreeSync(data, 'db');
+                }
+            }).on('copy_node.jstree', function(e, data) {
+                var isSameTree = (data.old_instance.element[0].id === data.new_instance.element[0].id);
+                if (!isSameTree) handleCrossTreeSync(data, 'db');
+            });
+
+            var rightConfig = getCommonConfig();
+            rightConfig.core.data = @Html.Raw(Model.RightTreeJson);
+            $('#rightTree').jstree(rightConfig).on('move_node.jstree', function (e, data) {
+                var isSameTree = (data.old_instance.element[0].id === data.new_instance.element[0].id);
+                if (isSameTree) {
+                    var deviceId = document.querySelector('select[name="deviceId"]').value;
+                    var pureId = data.node.li_attr.area_id;
+                    var nodeName = data.node.text;
+                    var targetParentId = data.parent === '#' ? '0' : data.parent.replace('api_', '');
+                    
+                    $.ajax({
+                        url: '?handler=UpdateAiBoxAreaNode',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                        data: JSON.stringify({ DeviceId: parseInt(deviceId), Id: pureId, NodeName: nodeName, TargetParentId: targetParentId })
+                    });
+                } else {
+                    handleCrossTreeSync(data, 'api');
+                }
+            }).on('copy_node.jstree', function(e, data) {
+                var isSameTree = (data.old_instance.element[0].id === data.new_instance.element[0].id);
+                if (!isSameTree) handleCrossTreeSync(data, 'api');
+            });
+
+            function handleCrossTreeSync(data, targetTree) {
+                var sourceId = data.original ? data.original.id : data.node.id;
+                var nodeName = data.node.text;
+                var areaId = data.node.li_attr.area_id;
+                var targetParentId = data.parent;
+                
+                if (targetTree === 'db' && sourceId.startsWith('api_')) {
+                    $.ajax({
+                        url: '?handler=SyncToDb',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                        data: JSON.stringify({ NodeName: nodeName, TargetParentId: targetParentId, AreaId: areaId }),
+                        success: function(res) { 
+                            if(res.success) window.location.reload(); 
+                            else { alert(res.message); window.location.reload(); }
+                        }
+                    });
+                } else if (targetTree === 'api' && sourceId.startsWith('db_')) {
+                    var deviceId = document.querySelector('select[name="deviceId"]').value;
+                    $.ajax({
+                        url: '?handler=SyncToAiBox',
+                        type: 'POST',
+                        contentType: 'application/json',
+                        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                        data: JSON.stringify({ DeviceId: parseInt(deviceId), NodeName: nodeName, TargetParentId: targetParentId, AreaId: areaId }),
+                        success: function(res) { 
+                            if(res.success) window.location.reload(); 
+                            else { alert(res.message); window.location.reload(); }
+                        }
+                    });
+                }
+            }
+            
+            $('#btnShowImg').click(function() { var url = $(this).data('url'); if(url) window.open(url, '_blank'); }); 
+
+            // Form Submit via AJAX
+            $('#nodeForm').on('submit', function(e) {
+                e.preventDefault();
+                var formData = new FormData(this);
+                var url = $(this).attr('action');
+                $.ajax({
+                    url: url, type: 'POST', data: formData, processData: false, contentType: false,
+                    success: function(res) {
+                        if(res.success) { window.location.reload(); }
+                        else { alert(res.message); }
+                    }
+                });
+            });
+        }); 
+
+        function treeAction(treeType, action) { 
+            var selector = treeType === 'db' ? '#leftTree' : '#rightTree';
+            var instance = $(selector).jstree(true); 
+            var selected = instance.get_selected(true)[0]; 
+            
+            if (action === 'create') { 
+                var parentId = selected ? selected.id : "#";
+                openModal(treeType, 'create', parentId, null, null, null); 
+            } else if (action === 'edit') { 
+                if (!selected) { alert('請先選擇一個區域'); return; }
+                var img = selected.li_attr ? selected.li_attr.data_img : null; 
+                var areaId = selected.li_attr ? selected.li_attr.area_id : null; 
+                openModal(treeType, 'edit', selected.id, selected.text, img, areaId); 
+            } else if (action === 'delete') { 
+                if (!selected) { alert('請先選擇一個區域'); return; }
+                if(confirm("確定刪除 " + selected.text + "?")) { 
+                    var currentDeviceId = document.querySelector('select[name="deviceId"]').value;
+                    var handler = treeType === 'db' ? 'DeleteArea' : 'DeleteAiBoxArea';
+                    var pureId = selected.id.replace('db_', '').replace('api_', '');
+                    
+                    $.ajax({
+                        url: '?handler=' + handler,
+                        type: 'POST',
+                        contentType: 'application/json',
+                        headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                        data: JSON.stringify({ DeviceId: parseInt(currentDeviceId), Id: pureId }),
+                        success: function(res) {
+                            if(res.success) window.location.reload();
+                            else alert(res.message);
+                        }
+                    });
+                } 
+            } 
+        } 
+        
+        function openModal(treeType, mode, id, name, img, areaId) { 
+            var modal = $('#nodeModal'); 
+            var form = modal.find('form'); 
+            var btnShow = $('#btnShowImg'); 
+            var txtPath = $('#nodeImgPath'); 
+            
+            $('#nodeId').val(''); $('#treeNodeParentId').val(''); $('#treeNodeName').val(''); $('#treeNodeAreaId').val('');
+            $('#imgStatus').text(''); txtPath.val(''); btnShow.hide().data('url', ''); 
+            
+            if (treeType === 'api') {
+                $('.img-field').hide();
+                $('.parent-id-field').show();
+                if(mode === 'create') $('.area-only').hide();
+                else $('.area-only').show();
+            } else {
+                $('.img-field').show();
+                $('.area-only').show();
+                $('.parent-id-field').hide();
+            }
+
+            var currentDeviceId = document.querySelector('select[name="deviceId"]').value;
+            var handlerPrefix = treeType === 'db' ? 'Area' : 'AiBoxArea';
+
+            if (mode === 'create') { 
+                $('#modalTitle').text('新增區域'); 
+                $('#treeNodeParentId').val(id === '#' ? '0' : id.replace('db_', '').replace('api_', ''));
+                form.attr('action', '?handler=Create' + handlerPrefix + '&deviceId=' + currentDeviceId); 
+            } else { 
+                $('#modalTitle').text('編輯區域'); 
+                $('#nodeId').val(id.replace('db_', '').replace('api_', '')); 
+                $('#treeNodeName').val(name); 
+                $('#treeNodeAreaId').val(areaId || '');
+                
+                var instance = treeType === 'db' ? $('#leftTree').jstree(true) : $('#rightTree').jstree(true);
+                var node = instance.get_node(id);
+                var pId = node.parent === '#' ? '0' : node.parent.replace('db_', '').replace('api_', '');
+                $('#treeNodeParentId').val(pId);
+
+                if(img) { 
+                    $('#imgStatus').text('目前已有圖片'); 
+                    btnShow.show().data('url', img); 
+                    txtPath.val(img); 
+                } else { 
+                    $('#imgStatus').text('尚未上傳圖片'); 
+                } 
+                form.attr('action', '?handler=Edit' + handlerPrefix + '&deviceId=' + currentDeviceId); 
+            } 
+            modal.css('display', 'flex'); 
+        } 
+        
+        function closeModal() { $('#nodeModal').hide(); } 
+    </script> 
+}

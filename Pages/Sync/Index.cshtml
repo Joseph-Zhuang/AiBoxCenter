@@ -1,0 +1,417 @@
+﻿@page
+@model AiBoxCenter.Pages.Sync.IndexModel
+@using System.Text.Json
+@{ 
+    Layout = null; 
+}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>攝影機同步</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding: 20px; font-family: sans-serif; background-color: white; color: black; }
+        .table-header-custom { background-color: #f8f9fa; font-weight: bold; text-align: center; height: 60px; vertical-align: middle; }
+        .db-section { background-color: #eafaf1; }
+        .json-section { background-color: #fef9e7; }
+        
+        .gap-col { 
+            background-color: #fff !important;
+            width: 86px !important; 
+            min-width: 86px !important;
+            max-width: 86px !important;
+            padding: 0 !important; 
+            margin: 0 !important;
+            text-align: center;
+            border-top: hidden !important;
+            border-bottom: hidden !important;
+        }
+
+        tbody tr td:not(.gap-col) { cursor: pointer; }
+        tbody tr:hover td:not(.gap-col) { filter: brightness(0.95); }
+        #syncTable tbody tr { height: 50px; }
+        .action-btn { width: 84px !important; height: 38px !important; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+
+        .custom-nav { margin-bottom: 30px; display: flex; gap: 20px; font-size: 18px; }
+        .custom-nav a { text-decoration:none; color:#0d6efd; font-weight:bold; }
+        .custom-nav a:hover { text-decoration:underline; }
+        .col-area { width: auto; }
+    </style>
+</head>
+<body>
+    <div class="custom-nav">
+        <a href="/Devices/Index">⬅ 返回設備管理</a>
+        <a href="/Cameras/Index">⬅ 返回攝影機管理</a>
+    </div>
+
+    <div class="container-fluid">
+        <h2 class="mb-4">攝影機同步</h2>
+
+        <form method="get" action="" class="mb-4">
+            <div style="display: flex; flex-direction: row; align-items: center; gap: 15px;">
+                <label style="font-weight: bold; white-space: nowrap;">BoxName (IP:Port):</label>
+                <select name="deviceId" class="form-select w-auto" style="min-width: 300px;">
+                    @foreach (var device in Model.ViewModel.DeviceList) {
+                        if (device.Id == Model.ViewModel.SelectedDeviceId) {
+                            <option value="@device.Id" selected>@device.DeviceName (@device.DeviceIP:@device.DevicePort)</option>
+                        } else {
+                            <option value="@device.Id">@device.DeviceName (@device.DeviceIP:@device.DevicePort)</option>
+                        }
+                    }
+                </select>
+                <button type="submit" class="btn btn-primary">讀取資料</button>
+            </div>
+        </form>
+
+        @if (Model.ViewModel.Rows != null && Model.ViewModel.Rows.Count > 0) {
+        <div class="table-responsive">
+            <table id="syncTable" style="width: 100%; border-collapse: collapse; table-layout: fixed; border: 2px solid black;">
+                <colgroup>
+                    <col style="width: 40px;" /> <col style="width: 28px;" /> <col /><col /><col /><col /><col />
+                    <col class="col-area" /> 
+                    
+                    <col style="width: 86px;" /> 
+                    
+                    <col style="width: 28px;" /> <col /><col /><col /><col /><col />
+                    <col class="col-area" /> 
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th colspan="8" class="table-header-custom db-section" style="border: 1px solid black;">
+                            <div class="d-flex justify-content-between align-items-center px-2">
+                                <span>Database Source</span>
+                                <button type="button" id="btnUpdateDb" class="btn btn-sm btn-success">資料庫更新</button>
+                            </div>
+                        </th>
+                        <th class="gap-col" style="border-left: 1px solid black; border-right: 1px solid black;"></th>
+                        <th colspan="7" class="table-header-custom json-section" style="border: 1px solid black;">
+                            <div class="d-flex justify-content-between align-items-center px-2">
+                                <span>AiBox Source</span>
+                                <button type="button" id="btnUpdateAiBox" class="btn btn-sm btn-warning">AiBox更新</button>
+                            </div>
+                        </th>
+                    </tr>
+                    <tr class="table-header-custom">
+                        <th style="border:1px solid black;">序號</th><th style="border:1px solid black;"></th><th style="border:1px solid black;">攝影機序號</th><th style="border:1px solid black;">攝影機名稱</th><th style="border:1px solid black;">串流方式</th><th style="border:1px solid black;">串流位址</th><th style="border:1px solid black;">演算法</th><th class="col-area" style="border:1px solid black;">區域</th>
+                        <th class="gap-col" style="border-left: 1px solid black; border-right: 1px solid black;"></th>
+                        <th style="border:1px solid black;"></th><th style="border:1px solid black;">攝影機序號</th><th style="border:1px solid black;">攝影機名稱</th><th style="border:1px solid black;">串流方式</th><th style="border:1px solid black;">串流位址</th><th style="border:1px solid black;">演算法</th><th class="col-area" style="border:1px solid black;">區域</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (int i = 0; i < Model.ViewModel.Rows.Count; i++) {
+                        var r = Model.ViewModel.Rows[i];
+                        <tr data-row-index="@i">
+                            <input type="hidden" class="db-state" value="0" /><input type="hidden" class="json-state" value="0" />
+                            
+                            <td class="db-section text-center no-highlight" style="border:1px solid black;">@( (r.DbData != null || r.JsonData != null) ? (i + 1).ToString() : "" )</td>
+                            <td class="db-section text-center db-status-cell" style="border:1px solid black; color: #dc3545 !important; font-weight: bold;"></td>
+                            
+                            <td class="db-section left-group" style="border:1px solid black; word-wrap:break-word;">@r.DbData?.CameraId</td>
+                            <td class="db-section left-group" style="border:1px solid black; word-wrap:break-word;">@r.DbData?.Name</td>
+                            <td class="db-section left-group text-center" style="border:1px solid black;">@r.DbData?.ConnectionMethod</td>
+                            <td class="db-section left-group" style="border:1px solid black; word-break:break-all;">@r.DbData?.StreamUrl</td>
+                            <td class="db-section left-group text-center" style="border:1px solid black;">@r.DbData?.AlgTypes</td>
+                            <td class="db-section left-group col-area" style="border:1px solid black; word-break:break-all;">@r.DbData?.AreaId</td>
+                            
+                            <td class="gap-col" style="border-left:1px solid black; border-right:1px solid black;">
+                                <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 100%;">
+                                    @if (i == 0) { <button id="btnRight" class="btn btn-outline-primary action-btn" disabled>→</button> }
+                                    else if (i == 2) { <button id="btnLeft" class="btn btn-outline-primary action-btn" disabled>←</button> }
+                                    else if (i == 4) { <button id="btnDelete" class="btn btn-outline-danger action-btn" disabled>刪除</button> }
+                                    else if (i == 6) { <button id="btnRestore" class="btn btn-outline-secondary action-btn" disabled>復原</button> }
+                                </div>
+                            </td>
+
+                            <td class="json-section text-center json-status-cell" style="border:1px solid black; color: #dc3545 !important; font-weight: bold;"></td>
+                            
+                            <td class="json-section right-group" style="border:1px solid black; word-wrap:break-word;">@r.JsonData?.id</td>
+                            <td class="json-section right-group" style="border:1px solid black; word-wrap:break-word;">@r.JsonData?.name</td>
+                            <td class="json-section right-group text-center" style="border:1px solid black;">@r.JsonData?.accessType</td>
+                            <td class="json-section right-group" style="border:1px solid black; word-break:break-all;">@r.JsonData?.url</td>
+                            <td class="json-section right-group text-center" style="border:1px solid black;">@(r.JsonData?.type != null ? string.Join(",", r.JsonData.type.Select(x => x.ToString())) : "")</td>
+                            <td class="json-section right-group col-area" style="border:1px solid black; word-break:break-all;">@r.JsonData?.areaId</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        }
+    </div>
+
+    <script>
+        @if (Model.ViewModel.Rows != null && Model.ViewModel.Rows.Count > 0) {
+            <text>window.originalData = @Html.Raw(JsonSerializer.Serialize(Model.ViewModel.Rows, new JsonSerializerOptions { PropertyNamingPolicy = null }));</text>
+        } else {
+            <text>window.originalData = [];</text>
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            const tbody = document.querySelector('#syncTable tbody');
+            if (!tbody) return;
+            let currentSelection = null;
+
+            tbody.addEventListener('click', function(e) {
+                const cell = e.target.closest('td');
+                if (!cell || cell.classList.contains('gap-col') || cell.classList.contains('no-highlight')) return;
+                if (!cell.classList.contains('left-group') && !cell.classList.contains('right-group')) return;
+
+                const row = cell.closest('tr');
+                const side = cell.classList.contains('left-group') ? 'left' : 'right';
+                const idx = row.getAttribute('data-row-index');
+
+                tbody.querySelectorAll('td').forEach(td => { 
+                    td.style.backgroundColor = '';
+                    if(td.classList.contains('left-group') || td.classList.contains('right-group')) {
+                        td.style.color = '';
+                    }
+                });
+
+                if (currentSelection && currentSelection.row === row && currentSelection.side === side) {
+                    currentSelection = null;
+                    toggleButtons(null, null);
+                    return;
+                }
+
+                currentSelection = { row, side, idx };
+                row.querySelectorAll(side === 'left' ? '.left-group' : '.right-group').forEach(td => {
+                    // EXACT LOGIC: Black background, white color
+                    td.style.backgroundColor = 'black';
+                    td.style.color = 'white';
+                });
+                toggleButtons(side, row);
+            });
+
+            function isDataEmpty(row, side) {
+                const cells = row.querySelectorAll(side === 'left' ? '.left-group' : '.right-group');
+                return !Array.from(cells).some(c => c.textContent.trim() !== '');
+            }
+
+            function toggleButtons(side, row) {
+                const btnR = document.getElementById('btnRight');
+                const btnL = document.getElementById('btnLeft');
+                const btnD = document.getElementById('btnDelete');
+                const btnRes = document.getElementById('btnRestore');
+
+                if(btnR) btnR.disabled = true;
+                if(btnL) btnL.disabled = true;
+                if(btnD) btnD.disabled = true;
+                if(btnRes) btnRes.disabled = true;
+
+                if (!side || !row) return;
+
+                const isEmpty = isDataEmpty(row, side);
+                if (!isEmpty) {
+                    if(btnRes) btnRes.disabled = false;
+                    if(btnD) btnD.disabled = false;
+
+                    if (side === 'left') {
+                        if(btnR) btnR.disabled = false;
+                    } else {
+                        if(btnL) btnL.disabled = false;
+                    }
+                }
+            }
+
+            function getStatusText(val) {
+                if(val === '1') return '增';
+                if(val === '2') return '改';
+                if(val === '3') return '刪';
+                return '';
+            }
+
+            function updateStatusDisplay(row, side, newVal) {
+                const cell = row.querySelector(side === 'left' ? '.db-status-cell' : '.json-status-cell');
+                if(cell) cell.textContent = getStatusText(newVal);
+            }
+
+            const btnL = document.getElementById('btnLeft');
+            const btnR = document.getElementById('btnRight');
+            const btnD = document.getElementById('btnDelete');
+            const btnRes = document.getElementById('btnRestore');
+
+            if(btnL) btnL.addEventListener('click', () => {
+                if(!currentSelection || currentSelection.side !== 'right') return;
+                const row = currentSelection.row;
+                const lefts = row.querySelectorAll('.left-group');
+                const rights = row.querySelectorAll('.right-group');
+                const isEmpty = Array.from(lefts).every(c => c.textContent.trim() === '');
+                
+                lefts.forEach((c, i) => c.textContent = rights[i].textContent);
+                
+                const newState = isEmpty ? '1' : '2';
+                row.querySelector('.db-state').value = newState;
+                updateStatusDisplay(row, 'left', newState);
+            });
+
+            if(btnR) btnR.addEventListener('click', () => {
+                if(!currentSelection || currentSelection.side !== 'left') return;
+                const row = currentSelection.row;
+                const lefts = row.querySelectorAll('.left-group');
+                const rights = row.querySelectorAll('.right-group');
+                const isEmpty = Array.from(rights).every(c => c.textContent.trim() === '');
+                
+                rights.forEach((c, i) => c.textContent = lefts[i].textContent);
+                
+                const newState = isEmpty ? '1' : '2';
+                row.querySelector('.json-state').value = newState;
+                updateStatusDisplay(row, 'right', newState);
+            });
+
+            if(btnD) btnD.addEventListener('click', () => {
+                if(!currentSelection) return;
+                const row = currentSelection.row;
+                const side = currentSelection.side;
+                if(side === 'left') {
+                    row.querySelector('.db-state').value = '3';
+                    updateStatusDisplay(row, 'left', '3');
+                } else {
+                    row.querySelector('.json-state').value = '3';
+                    updateStatusDisplay(row, 'right', '3');
+                }
+            });
+
+            if(btnRes) btnRes.addEventListener('click', () => {
+                if(!currentSelection) return;
+                const row = currentSelection.row;
+                const idx = row.getAttribute('data-row-index');
+                const orig = window.originalData[idx]; 
+                const side = currentSelection.side;
+
+                if(side === 'left') {
+                    const cells = row.querySelectorAll('.left-group');
+                    const d = orig ? orig.DbData : null;
+                    if(d) {
+                        const vals = [d.CameraId, d.Name, d.ConnectionMethod, d.StreamUrl, d.AlgTypes, d.AreaId];
+                        cells.forEach((c, j) => c.textContent = vals[j] || '');
+                    } else {
+                        cells.forEach(c => c.textContent = '');
+                    }
+                    row.querySelector('.db-state').value = '0';
+                    updateStatusDisplay(row, 'left', '0');
+                } else {
+                    const cells = row.querySelectorAll('.right-group');
+                    const d = orig ? orig.JsonData : null;
+                    if(d) {
+                        const typeStr = d.type ? d.type.join(',') : '';
+                        const vals = [d.id, d.name, d.accessType, d.url, typeStr, d.areaId];
+                        cells.forEach((c, j) => c.textContent = vals[j] || '');
+                    } else {
+                        cells.forEach(c => c.textContent = '');
+                    }
+                    row.querySelector('.json-state').value = '0';
+                    updateStatusDisplay(row, 'right', '0');
+                }
+                toggleButtons(side, row);
+            });
+
+            const btnUpdateDb = document.getElementById('btnUpdateDb');
+            if(btnUpdateDb) {
+                btnUpdateDb.addEventListener('click', () => {
+                    const deviceIdSelect = document.querySelector('select[name="deviceId"]');
+                    if(!deviceIdSelect) return;
+                    const deviceId = deviceIdSelect.value;
+                    const rows = document.querySelectorAll('#syncTable tbody tr');
+                    const updates = [];
+                    
+                    rows.forEach(row => {
+                        const state = parseInt(row.querySelector('.db-state').value);
+                        if (state > 0) {
+                            const cells = row.querySelectorAll('.left-group');
+                            updates.push({
+                                State: state,
+                                CameraId: cells[0].textContent.trim(),
+                                Name: cells[1].textContent.trim(),
+                                ConnectionMethod: cells[2].textContent.trim(),
+                                StreamUrl: cells[3].textContent.trim(),
+                                AlgTypes: cells[4].textContent.trim(),
+                                AreaId: cells[5].textContent.trim()
+                            });
+                        }
+                    });
+
+                    if(updates.length === 0) { 
+                        alert('沒有需要更新的資料 (資料庫側)'); 
+                        return; 
+                    }
+                    
+                    if(!confirm('確定要將變更寫入資料庫嗎？')) return;
+                    
+                    fetch('?handler=UpdateDatabase', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value 
+                        },
+                        body: JSON.stringify({ DeviceId: parseInt(deviceId), Items: updates })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.success) { 
+                            alert('資料庫更新成功'); 
+                            window.location.href = '?deviceId=' + deviceId; 
+                        } else { 
+                            alert('更新失敗: ' + data.message); 
+                        }
+                    })
+                    .catch(err => alert('系統錯誤: ' + err));
+                });
+            }
+
+            const btnUpdateAiBox = document.getElementById('btnUpdateAiBox');
+            if(btnUpdateAiBox) {
+                btnUpdateAiBox.addEventListener('click', () => {
+                    const deviceIdSelect = document.querySelector('select[name="deviceId"]');
+                    if(!deviceIdSelect) return;
+                    const deviceId = deviceIdSelect.value;
+                    const rows = document.querySelectorAll('#syncTable tbody tr');
+                    const updates = [];
+                    
+                    rows.forEach(row => {
+                        const state = parseInt(row.querySelector('.json-state').value);
+                        if (state > 0) {
+                            const cells = row.querySelectorAll('.right-group');
+                            updates.push({
+                                State: state,
+                                CameraId: cells[0].textContent.trim(),
+                                Name: cells[1].textContent.trim(),
+                                ConnectionMethod: cells[2].textContent.trim(),
+                                StreamUrl: cells[3].textContent.trim(),
+                                AlgTypes: cells[4].textContent.trim(),
+                                AreaId: cells[5].textContent.trim()
+                            });
+                        }
+                    });
+
+                    if(updates.length === 0) { 
+                        alert('沒有需要更新的資料 (AiBox側)'); 
+                        return; 
+                    }
+                    
+                    if(!confirm('確定要將變更寫入 AiBox 實體設備嗎？')) return;
+                    
+                    fetch('?handler=UpdateAiBox', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                        },
+                        body: JSON.stringify({ DeviceId: parseInt(deviceId), Items: updates })
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if(data.success) { 
+                            alert('AiBox設備更新成功'); 
+                            window.location.href = '?deviceId=' + deviceId; 
+                        } else { 
+                            alert('更新失敗: ' + data.message); 
+                        }
+                    })
+                    .catch(err => alert('系統錯誤: ' + err));
+                });
+            }
+        });
+    </script>
+    @Html.AntiForgeryToken()
+</body>
+</html>

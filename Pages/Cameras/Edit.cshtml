@@ -1,0 +1,24 @@
+﻿@page
+@model AiBoxCenter.Pages.Cameras.EditModel
+@{ ViewData["Title"] = "編輯攝影機"; }
+
+<div style="background:#fff; padding:30px; border-radius:4px; max-width:600px; margin:20px auto;">
+    <h3>編輯攝影機</h3>
+    <form method="post">
+        <input type="hidden" asp-for="Input.Id" /> 
+        <input type="hidden" asp-for="Input.LocationX" /> 
+        <input type="hidden" asp-for="Input.LocationY" />
+        
+        <div class="form-group"><label>名稱</label><input asp-for="Input.Name" class="ant-input" /></div>
+        <div class="form-group"><label>攝影機識別碼 (CameraId)</label><input asp-for="Input.CameraId" class="ant-input" /></div>
+        <div class="form-group"><label>連接設備 (AiBox)</label><select asp-for="Input.DeviceId" asp-items="Model.Devices" class="ant-input"></select></div>
+        <div class="form-group"><label>串接方式</label><select asp-for="Input.ConnectionMethodId" asp-items="Model.ConnectionMethods" class="ant-input"></select></div>
+        <div class="form-group"><label>串流位址</label><input asp-for="Input.StreamUrl" class="ant-input" /></div>
+        <div class="form-group"><label>區域</label><select asp-for="Input.AreaId" asp-items="Model.Areas" class="ant-input"></select></div>
+        <div class="form-group"><label>演算法 (可多選)</label><select asp-for="Input.AlgorithmIds" asp-items="Model.Algorithms" class="ant-input" multiple style="height:100px;"></select></div>
+        <div class="form-group"><label>群組</label><select asp-for="Input.GroupId" asp-items="Model.Groups" class="ant-input"></select></div>
+        
+        <button type="button" class="ant-btn" style="background:#888; border-color:#888; margin-right:10px;" onclick="window.history.back()">取消</button>
+        <button type="submit" class="ant-btn">更新</button> 
+    </form>
+</div>

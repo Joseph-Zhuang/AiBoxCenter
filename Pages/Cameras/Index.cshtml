@@ -1,0 +1,243 @@
+﻿@page
+@model AiBoxCenter.Pages.Cameras.IndexModel
+@{ 
+    ViewData["Title"] = "攝影機管理"; 
+}
+
+@Html.AntiForgeryToken()
+
+<div class="main-layout">
+    <aside class="sidebar-wrapper">
+        <div class="tree-panel">
+            <h3 class="sidebar-title">區域管理</h3>
+            <div class="tree-toolbar">
+                <button class="icon-btn" onclick="treeAction('area', 'create')"><i class="fas fa-plus"></i></button> 
+                <button class="icon-btn" onclick="treeAction('area', 'edit')"><i class="fas fa-edit"></i></button> 
+                <button class="icon-btn danger" onclick="treeAction('area', 'delete')"><i class="fas fa-trash-alt"></i></button> 
+                <span class="divider"></span> 
+                <button class="icon-btn" onclick="treeAction('area', 'up')"><i class="fas fa-arrow-up"></i></button> 
+                <button class="icon-btn" onclick="treeAction('area', 'down')"><i class="fas fa-arrow-down"></i></button>
+            </div>
+            <div id="areaTree" class="tree-content"></div>
+        </div>
+        
+        <div class="tree-panel">
+            <h3 class="sidebar-title">群組管理</h3>
+            <div class="tree-toolbar">
+                <button class="icon-btn" onclick="treeAction('group', 'create')"><i class="fas fa-plus"></i></button> 
+                <button class="icon-btn" onclick="treeAction('group', 'edit')"><i class="fas fa-edit"></i></button> 
+                <button class="icon-btn danger" onclick="treeAction('group', 'delete')"><i class="fas fa-trash-alt"></i></button> 
+                <span class="divider"></span> 
+                <button class="icon-btn" onclick="treeAction('group', 'up')"><i class="fas fa-arrow-up"></i></button> 
+                <button class="icon-btn" onclick="treeAction('group', 'down')"><i class="fas fa-arrow-down"></i></button>
+            </div>
+            <div id="groupTree" class="tree-content"></div>
+        </div>
+    </aside>
+    
+    <div class="content-area">
+        <div class="content-header">
+            <h2>攝影機列表</h2>
+            <a asp-page="./Create" class="ant-btn">+ 新增攝影機</a>
+        </div>
+        <table id="cameraTable" class="display nowrap" style="width:100%">
+            <thead>
+                <tr>
+                    <th>序號</th><th>識別碼</th><th>名稱</th><th>設備</th><th>區域</th>
+                    <th>串接方式</th><th>串流位址</th><th>演算法</th><th>群組</th><th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model.Cameras) 
+                { 
+                    <tr>
+                        <td>@item.Id</td>
+                        <td>@item.CameraId</td>
+                        <td>@item.Name</td>
+                        <td>@(item.Device != null ? $"{item.Device.DeviceName} ({item.Device.DeviceIP})" : "未指定")</td>
+                        <td>@(item.Area?.AreaName ?? "-")</td>
+                        <td>@item.ConnectionMethod?.Name</td>
+                        <td class="text-truncate" title="@item.StreamUrl">@item.StreamUrl</td>
+                        <td>@(string.Join(", ", item.CameraAlgorithms.Select(ca => ca.Algorithm.AlgName)))</td>
+                        <td>@(item.Group?.Name ?? "-")</td>
+                        <td>
+                            <a asp-page="./Edit" asp-route-id="@item.Id" class="link-btn small-btn">編輯</a> 
+                            <a href="javascript:void(0)" onclick="deleteCamera(@item.Id)" class="link-btn danger small-btn">刪除</a>
+                        </td>
+                    </tr> 
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<form id="deleteCamForm" method="post" asp-page-handler="DeleteCamera">
+    <input type="hidden" name="id" id="deleteCamId" />
+</form>
+<form id="deleteNodeForm" method="post">
+    <input type="hidden" name="id" id="deleteNodeId" />
+</form>
+
+<div id="nodeModal" class="custom-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h5 id="modalTitle">新增</h5>
+            <button type="button" onclick="closeModal()" class="close-btn">✕</button>
+        </div>
+        <div asp-validation-summary="All" class="text-danger" style="padding: 0 20px;"></div>
+        <form method="post" enctype="multipart/form-data">
+            <div class="modal-body">
+                <input type="hidden" name="TreeModel.Id" id="nodeId" />
+                <input type="hidden" name="TreeModel.ParentId" id="nodeParentId" />
+                <div class="form-group">
+                    <label>名稱</label>
+                    <input name="TreeModel.Name" id="treeNodeName" class="ant-input" required />
+                </div>
+                <div class="form-group area-only">
+                    <label>區域代碼 (AreaId)</label>
+                    <input name="TreeModel.AreaId" id="treeNodeAreaId" class="ant-input" readonly="readonly" style="background-color:#f5f5f5;" placeholder="系統自動產生 18 碼隨機數" />
+                </div>
+                <div class="form-group img-field">
+                    <label>Image Path</label>
+                    <input type="text" id="nodeImgPath" class="ant-input" readonly style="background-color:#f5f5f5; color:#666;" />
+                </div>
+                <div class="form-group img-field">
+                    <label>圖片上傳</label>
+                    <input type="file" name="TreeModel.ImageFile" class="ant-input" accept="image/*" />
+                    <div style="margin-top:8px;">
+                        <span id="imgStatus" style="font-size:12px; color:#666; margin-right:10px;"></span>
+                        <button type="button" id="btnShowImg" class="ant-btn small" style="display:none; background-color:#52c41a;">顯示圖片</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="ant-btn" style="background:#888; border-color:#888; margin-right:10px;" onclick="closeModal()">取消</button>
+                <button type="submit" class="ant-btn">儲存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts { 
+    <script>
+        $(document).ready(function () { 
+            $('#cameraTable').DataTable({ "language": { "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/zh-HANT.json" }, "scrollX": true }); 
+            initTree('#areaTree', @Html.Raw(Model.AreaTreeJson), 'Area'); 
+            initTree('#groupTree', @Html.Raw(Model.GroupTreeJson), 'Group'); 
+            $('#btnShowImg').click(function() { var url = $(this).data('url'); if(url) window.open(url, '_blank'); }); 
+        }); 
+        
+        function initTree(selector, jsonData, type) { 
+            $(selector).jstree({ 
+                'core': { 
+                    'data': jsonData, 
+                    'check_callback': function (op, node, par, pos, more) { 
+                        if (node.id === "root_all") return false; 
+                        if (par.id === "#" && pos === 0) return false; 
+                        return true; 
+                    }, 
+                    'themes': { 'name': 'default', 'responsive': true, 'dots': true, 'icons': true } 
+                }, 
+                'types': { 'root': { 'icon': 'fas fa-globe', 'draggable': false }, 'default': { 'valid_children': ['default'] } }, 
+                'plugins': ['dnd', 'types'] 
+            }).on("select_node.jstree", function (e, data) { 
+                if (data.event) { 
+                    var url = ""; 
+                    if (type === 'Area') { url = `?SelectedAreaId=${data.node.id}&SelectedGroupId=`; } 
+                    else { url = `?SelectedAreaId=&SelectedGroupId=${data.node.id}`; } 
+                    window.location.href = url; 
+                } 
+            }).on("move_node.jstree", function (e, data) { 
+                $.ajax({ 
+                    url: `?handler=Update${type}Node`, type: "POST", 
+                    headers: { "RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() }, 
+                    data: { id: data.node.id, parent: data.parent, position: data.position } 
+                }); 
+            }); 
+        } 
+        
+        function treeAction(type, action) { 
+            var selector = type === 'area' ? '#areaTree' : '#groupTree'; 
+            var instance = $(selector).jstree(true); 
+            var selected = instance.get_selected(true)[0]; 
+            if (!selected) { alert(`請先選擇一個${type === 'area' ? '區域' : '群組'}`); return; } 
+            
+            if (action === 'create') { 
+                openModal(type, 'create', selected.id, null, null, null); 
+            } else if (action === 'edit') { 
+                if(selected.id === "root_all") { alert("根節點無法編輯"); return; } 
+                var img = selected.li_attr ? selected.li_attr.data_img : null; 
+                var areaId = selected.li_attr ? selected.li_attr.area_id : null;
+                openModal(type, 'edit', selected.id, selected.text, img, areaId); 
+            } else if (action === 'delete') { 
+                if(selected.id === "root_all") { alert("根節點無法刪除"); return; } 
+                if(confirm("確定刪除 " + selected.text + "?")) { 
+                    $('#deleteNodeId').val(selected.id); 
+                    var handler = type === 'area' ? 'DeleteArea' : 'DeleteGroup'; 
+                    $('#deleteNodeForm').attr('action', `?handler=${handler}`).submit(); 
+                } 
+            } else if (action === 'up' || action === 'down') { 
+                if(selected.id === "root_all") return; 
+                var parentNode = instance.get_node(selected.parent); 
+                var idx = parentNode.children.indexOf(selected.id); 
+                var newIdx = (action === 'up') ? idx - 1 : idx + 2; 
+                if ((action === 'up' && newIdx >= 0) || (action === 'down' && newIdx <= parentNode.children.length)) { 
+                    instance.move_node(selected, selected.parent, newIdx); 
+                } 
+            } 
+        } 
+        
+        function openModal(type, mode, id, name, img, areaId) { 
+            var modal = $('#nodeModal'); 
+            var form = modal.find('form'); 
+            var btnShow = $('#btnShowImg'); 
+            var txtPath = $('#nodeImgPath'); 
+            var titlePrefix = type === 'area' ? '區域' : '群組'; 
+            
+            if (type === 'group') { 
+                $('.img-field').hide(); 
+                $('.area-only').hide();
+            } else { 
+                $('.img-field').show(); 
+                $('.area-only').show();
+            } 
+            
+            var handlerSuffix = type === 'area' ? 'Area' : 'Group'; 
+            var createHandler = `?handler=Create${handlerSuffix}`; 
+            var editHandler = `?handler=Edit${handlerSuffix}`; 
+            
+            $('#nodeId').val(''); $('#nodeParentId').val(''); $('#treeNodeName').val(''); $('#treeNodeAreaId').val(''); 
+            $('#imgStatus').text(''); txtPath.val(''); btnShow.hide().data('url', ''); 
+            
+            if (mode === 'create') { 
+                $('#modalTitle').text(`新增${titlePrefix}`); 
+                $('#nodeParentId').val(id); 
+                form.attr('action', createHandler); 
+            } else { 
+                $('#modalTitle').text(`編輯${titlePrefix}`); 
+                $('#nodeId').val(id); 
+                $('#treeNodeName').val(name); 
+                $('#treeNodeAreaId').val(areaId || '');
+                if(type === 'area') { 
+                    if(img) { 
+                        $('#imgStatus').text('目前已有圖片'); 
+                        btnShow.show().data('url', img); 
+                        txtPath.val(img); 
+                    } else { 
+                        $('#imgStatus').text('尚未上傳圖片'); 
+                    } 
+                } 
+                form.attr('action', editHandler); 
+            } 
+            modal.css('display', 'flex'); 
+        } 
+        
+        function closeModal() { $('#nodeModal').hide(); } 
+        function deleteCamera(id) { 
+            if(confirm("確定刪除此攝影機?")) { 
+                $('#deleteCamId').val(id); 
+                $('#deleteCamForm').submit(); 
+            } 
+        } 
+    </script> 
+}

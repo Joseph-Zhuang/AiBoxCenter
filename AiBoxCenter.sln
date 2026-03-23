@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37111.16 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AiBoxCenter", "AiBoxCenter.csproj", "{57F06151-6298-79E5-5946-07FA1E12A0D5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{57F06151-6298-79E5-5946-07FA1E12A0D5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57F06151-6298-79E5-5946-07FA1E12A0D5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57F06151-6298-79E5-5946-07FA1E12A0D5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57F06151-6298-79E5-5946-07FA1E12A0D5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {8E56A4E7-E4AB-4C5F-B3B0-178865BC84E5}
+	EndGlobalSection
+EndGlobal
