@@ -11,8 +11,8 @@ namespace AiBoxCenter.Models
         public string? CameraId { get; set; } 
         [Required(ErrorMessage = "必須選擇設備")] public int DeviceId { get; set; } 
         public virtual Device? Device { get; set; }
-        public int LocationX { get; set; } = 0; 
-        public int LocationY { get; set; } = 0;
+        public int LocationX { get; set; } = -1; 
+        public int LocationY { get; set; } = -1;
         public int ConnectionMethodId { get; set; } 
         public int? AreaId { get; set; } 
         public int? GroupId { get; set; }
