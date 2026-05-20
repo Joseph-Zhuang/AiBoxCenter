@@ -1,0 +1,209 @@
+﻿@page
+@model AiBoxCenter.Pages.Cameras.DeviceLayoutModel
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="zh-tw">
+<head>
+    <meta charset="utf-8" />
+    <title>設備佈局設定</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .layout-toolbar {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            height: 50px;
+            box-sizing: border-box;
+        }
+
+            .layout-toolbar label {
+                font-weight: bold;
+                font-size: 14px;
+            }
+
+            .layout-toolbar select, .layout-toolbar button {
+                padding: 4px 8px;
+                font-size: 14px;
+            }
+
+        .btn-fullscreen {
+            margin-left: auto;
+            background: #333;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+
+        /* 更新後的填滿樣式 */
+        .layout-canvas {
+            position: relative;
+            width: 100vw;
+            height: calc(100vh - 50px);
+            background-size: 100% 100%; /* 背景圖填滿 div */
+            background-position: center;
+            background-repeat: no-repeat;
+            background-color: #eee;
+            overflow: hidden;
+        }
+
+        .camera-icon {
+            position: absolute;
+            cursor: move;
+            text-align: center;
+            width: 64px;
+        }
+
+            .camera-icon img {
+                width: 48px;
+                height: 48px;
+                display: block;
+                margin: 0 auto;
+                user-drag: none;
+                -webkit-user-drag: none;
+            }
+
+            .camera-icon .cam-label {
+                font-size: 11px;
+                background: rgba(255,255,255,0.9);
+                border: 1px solid #999;
+                padding: 2px 4px;
+                border-radius: 3px;
+                margin-top: 2px;
+                word-wrap: break-word;
+            }
+
+        .selected-icon img {
+            border: 2px solid #ff0000;
+            box-shadow: 0 0 5px rgba(255,0,0,0.5);
+        }
+
+        .msg-info {
+            color: #d9534f;
+            font-weight: bold;
+            margin-left: 10px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <form method="post" id="layoutForm" style="height: 100%;">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="CameraPositionsJson" id="hfPositions" />
+
+        <div class="layout-toolbar" id="toolbar">
+            <label>Area:</label>
+            <select asp-for="SelectedAreaId" asp-items="@(new SelectList(Model.Areas, "Id", "AreaName"))" onchange="this.form.submit();"></select>
+
+            <label>Aibox:</label>
+            <select asp-for="SelectedAiBoxId" asp-items="@(new SelectList(Model.AiBoxes, "Id", "DeviceName"))"></select>
+
+            <label>Camera:</label>
+            <select asp-for="SelectedCameraId" asp-items="@(new SelectList(Model.Cameras, "Id", "Name"))" id="ddlCamera"></select>
+
+            <button type="submit" asp-page-handler="Add">Add</button>
+            <button type="submit" asp-page-handler="Remove">Remove</button>
+            <button type="button" onclick="triggerSave()">Save Layout</button>
+
+            <span class="msg-info">@Model.ServerMessage</span>
+
+            <button type="button" class="btn-fullscreen" onclick="toggleFullScreen()">⛶ 全螢幕</button>
+        </div>
+
+        <div id="layoutContainer" class="layout-canvas" style="background-image: url('@Url.Content(Model.BackgroundImageUrl ?? "")');">
+            @if (Model.SelectedAreaId.HasValue)
+            {
+                @foreach (var cam in Model.Cameras.Where(c => c.AreaId == Model.SelectedAreaId))
+                {
+                    <div class="camera-icon" id="cam_@cam.Id" draggable="true"
+                         style="left: @(cam.LocationX)px; top: @(cam.LocationY)px;"
+                         onclick="highlightCamera(@cam.Id)">
+                        <img src="~/images/cctv_2709318.png" alt="Camera" id="img_@cam.Id" />
+                        <div class="cam-label">@cam.Name</div>
+                    </div>
+                }
+            }
+        </div>
+    </form>
+
+    <script>
+        let currentDrag = null;
+        let offset = { x: 0, y: 0 };
+        let localMap = {};
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll('.camera-icon').forEach(el => {
+                const cid = el.id.split('_')[1];
+                localMap[cid] = { X: parseInt(el.style.left) || 0, Y: parseInt(el.style.top) || 0 };
+
+                el.addEventListener('dragstart', function(e) {
+                    currentDrag = this;
+                    const rect = this.getBoundingClientRect();
+                    offset.x = e.clientX - rect.left;
+                    offset.y = e.clientY - rect.top;
+                });
+            });
+
+            const container = document.getElementById('layoutContainer');
+            container.addEventListener('dragover', e => e.preventDefault());
+            container.addEventListener('drop', function(e) {
+                e.preventDefault();
+                if (currentDrag) {
+                    const cRect = container.getBoundingClientRect();
+                    let x = e.clientX - cRect.left - offset.x;
+                    let y = e.clientY - cRect.top - offset.y;
+
+                    x = Math.max(0, Math.min(x, container.clientWidth - currentDrag.offsetWidth));
+                    y = Math.max(0, Math.min(y, container.clientHeight - currentDrag.offsetHeight));
+
+                    currentDrag.style.left = x + 'px';
+                    currentDrag.style.top = y + 'px';
+
+                    const id = currentDrag.id.split('_')[1];
+                    localMap[id] = { X: Math.round(x), Y: Math.round(y) };
+                }
+            });
+        });
+
+        function highlightCamera(id) {
+            document.querySelectorAll('.camera-icon').forEach(i => i.classList.remove('selected-icon'));
+            const targetCam = document.getElementById('cam_' + id);
+            if(targetCam) targetCam.classList.add('selected-icon');
+            document.getElementById('ddlCamera').value = id;
+        }
+
+        function triggerSave() {
+            document.getElementById('hfPositions').value = JSON.stringify(localMap);
+            const f = document.getElementById('layoutForm');
+            f.action = '?handler=Save';
+            f.submit();
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

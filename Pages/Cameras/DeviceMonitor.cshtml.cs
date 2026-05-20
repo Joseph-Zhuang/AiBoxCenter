@@ -1,0 +1,51 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
+using AiBoxCenter.Data;
+using AiBoxCenter.Models;
+using Microsoft.Extensions.Configuration;
+
+namespace AiBoxCenter.Pages.Cameras
+{
+    public class DeviceMonitorModel : PageModel
+    {
+        private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
+
+        public DeviceMonitorModel(AppDbContext context, IConfiguration configuration)
+        {
+            _context = context;
+            _configuration = configuration;
+        }
+
+        public List<Area> Areas { get; set; } = new();
+        public List<Camera> PlacedCameras { get; set; } = new();
+
+        [BindProperty]
+        public int? SelectedAreaId { get; set; }
+
+        public string? BackgroundImageUrl { get; set; }
+
+        // 用於儲存 WebSocket URL
+        public string WsUrl { get; set; } = "";
+
+        public async Task OnGetAsync(int? areaId)
+        {
+            // 從 appsettings.json 讀取設定
+            WsUrl = _configuration["DeviceMonitorSettings:WsUrl"] ?? "ws://localhost:8013/ws";
+
+            Areas = await _context.Areas.OrderBy(a => a.SortOrder).ToListAsync();
+            SelectedAreaId = areaId ?? Areas.FirstOrDefault()?.Id;
+
+            if (SelectedAreaId.HasValue)
+            {
+                var area = Areas.FirstOrDefault(a => a.Id == SelectedAreaId);
+                BackgroundImageUrl = area?.Img_Url;
+
+                PlacedCameras = await _context.Cameras
+                    .Where(c => c.AreaId == SelectedAreaId.Value)
+                    .ToListAsync();
+            }
+        }
+    }
+}
