@@ -130,6 +130,7 @@
                 {
                     @foreach (var cam in Model.PlacedCameras)
                     {
+<<<<<<< HEAD
                         // 取得 DeviceName (若 Device 為空則預設顯示 Unknown)
                         var deviceName = cam.Device?.DeviceName ?? "Unknown";
 
@@ -139,6 +140,10 @@
 
                         <div class="camera-marker" style="left: @(cam.LocationX)px; top: @(cam.LocationY)px;">
                             <img src="~/images/cctv_2709318.png" id="@imgId" alt="@imgAlt" title="@imgAlt" />
+=======
+                        <div class="camera-marker" style="left: @(cam.LocationX)px; top: @(cam.LocationY)px;">
+                            <img src="~/images/cctv_2709318.png" alt="Camera" />
+>>>>>>> 1a49d17946f515438b98d26739c29dec5d74c448
                             <div class="camera-label">@cam.Name</div>
                         </div>
                     }

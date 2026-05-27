@@ -25,10 +25,19 @@ namespace AiBoxCenter.Pages.Cameras
         public int? SelectedAreaId { get; set; }
 
         public string? BackgroundImageUrl { get; set; }
+<<<<<<< HEAD
+=======
+
+        // 用於儲存 WebSocket URL
+>>>>>>> 1a49d17946f515438b98d26739c29dec5d74c448
         public string WsUrl { get; set; } = "";
 
         public async Task OnGetAsync(int? areaId)
         {
+<<<<<<< HEAD
+=======
+            // 從 appsettings.json 讀取設定
+>>>>>>> 1a49d17946f515438b98d26739c29dec5d74c448
             WsUrl = _configuration["DeviceMonitorSettings:WsUrl"] ?? "ws://localhost:8013/ws";
 
             Areas = await _context.Areas.OrderBy(a => a.SortOrder).ToListAsync();
@@ -39,9 +48,13 @@ namespace AiBoxCenter.Pages.Cameras
                 var area = Areas.FirstOrDefault(a => a.Id == SelectedAreaId);
                 BackgroundImageUrl = area?.Img_Url;
 
+<<<<<<< HEAD
                 // 必須 Include(c => c.Device)，前端才能讀取到 cam.Device.DeviceName
                 PlacedCameras = await _context.Cameras
                     .Include(c => c.Device)
+=======
+                PlacedCameras = await _context.Cameras
+>>>>>>> 1a49d17946f515438b98d26739c29dec5d74c448
                     .Where(c => c.AreaId == SelectedAreaId.Value)
                     .ToListAsync();
             }
